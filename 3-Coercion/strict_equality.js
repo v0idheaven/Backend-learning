@@ -7,7 +7,7 @@ console.log(-0 === 0);
 console.log(undefined === undefined);
 console.log(null === null);
 console.log("sanket" === "sanket");
-console.log({} === {});
+// console.log({} === {});
 let x = {};
 console.log(x === x);
 console.log(Symbol('sanket') === Symbol('sanket'));
