@@ -6,4 +6,4 @@ function fun() {
 
 
 fun();
-console.log(teacher); // sanket
+console.log(teacher); // output: sanket
