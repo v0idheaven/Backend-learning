@@ -3,5 +3,4 @@ function fun() {
     console.log(teachingAssistant);
     var teachingAssistant = "JD";
 }
-
 fun();
