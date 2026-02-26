@@ -4,4 +4,3 @@ setTimeout(function () {
 }, 0);
 
 console.log("end");
-console.log("ended")
