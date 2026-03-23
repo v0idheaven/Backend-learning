@@ -1,23 +1,27 @@
-class ApiError extends Error {
-    constructor(
-        statusCode,
-        message = 'Something went wrong',
-        errors = [],
-        stack = ""
-    ){
-        super(message);
-        this.statusCode = statusCode;
-        this.errors = errors;
-        this.data = null;
-        this.message = message;
-        this.success = false;
-
-        if(stack){
-            this.stack = stack;
-        } else {
-            Error.captureStackTrace(this, this.constructor);
-        }
+const asyncHandler = (requestHandler) => {
+    return (req, res, next) => {
+        Promise.resolve(requestHandler(req, res, next)).catch((err) => next(err))
     }
 }
 
-export { ApiError }
+
+export { asyncHandler }
+
+
+
+
+// const asyncHandler = () => {}
+// const asyncHandler = (func) => () => {}
+// const asyncHandler = (func) => async () => {}
+
+
+// const asyncHandler = (fn) => async (req, res, next) => {
+//     try {
+//         await fn(req, res, next)
+//     } catch (error) {
+//         res.status(err.code || 500).json({
+//             success: false,
+//             message: err.message
+//         })
+//     }
+// }
