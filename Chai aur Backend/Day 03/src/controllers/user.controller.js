@@ -342,4 +342,24 @@ const updateUserCoverImage = asyncHandler( async(req, res) => {
     .json(new ApiResponse(200, user, "User cover image updated successfully"))
 })
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails, updateUserAvatar, updateUserCoverImage }
+const getUserChannelProfile = asyncHandler( async(req, res) => {
+    const { username } = req.params;
+
+    if (!username?.trim()) {
+        throw new ApiError(404, "User not found with the provided username")
+    }
+
+    const user = await User.findOne({
+        username: username.toLowerCase()
+    }).select("-password -refreshToken")
+
+    if (!user) {
+        throw new ApiError(404, "User not found with the provided username")
+    }
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, user, "User channel profile fetched successfully"))
+})
+
+export { registerUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails, updateUserAvatar, updateUserCoverImage, getUserChannelProfile }
