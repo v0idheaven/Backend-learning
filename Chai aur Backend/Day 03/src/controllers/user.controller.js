@@ -353,13 +353,47 @@ const getUserChannelProfile = asyncHandler( async(req, res) => {
         username: username.toLowerCase()
     }).select("-password -refreshToken")
 
-    if (!user) {
-        throw new ApiError(404, "User not found with the provided username")
+    const channel = await user.aggregate([
+        {
+            $match: {
+                username: username.toLowerCase()
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers"
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo"
+            }
+        },
+        {
+            $project: {
+                fullName: 1,
+                username: 1,
+                avatar: 1,
+                coverImage: 1,
+                subscribersCount: { $size: "$subscribers" },
+                subscribedToCount: { $size: "$subscribedTo" }
+            }
+        }
+    ])
+
+    if (!channel.length) {
+        throw new ApiError(404, "User channel not found")
     }
 
     return res
     .status(200)
-    .json(new ApiResponse(200, user, "User channel profile fetched successfully"))
+    .json(new ApiResponse(200, channel[0], "User channel profile fetched successfully"))
 })
 
 export { registerUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails, updateUserAvatar, updateUserCoverImage, getUserChannelProfile }
