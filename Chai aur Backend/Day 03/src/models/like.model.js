@@ -15,10 +15,22 @@ const likeSchema = new Schema({
     },
     likedBy: {
         type: Schema.Types.ObjectId,
-        ref: "User"
+        ref: "User",
+        required: true
     }
 }, {
     timestamps: true
-})
+});
+
+const hasExactlyOneLikeTarget = function () {
+    const targets = [this.video, this.comment, this.tweet].filter(Boolean);
+
+    return targets.length === 1;
+};
+
+likeSchema.path("likedBy").validate(
+    hasExactlyOneLikeTarget,
+    "A like must reference exactly one of video, comment, or tweet"
+);
 
 export const Like = mongoose.model("Like", likeSchema);

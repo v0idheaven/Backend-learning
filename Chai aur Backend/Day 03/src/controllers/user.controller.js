@@ -2,7 +2,11 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import mongoose from "mongoose";
 import ApiError from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import {
+  uploadOnCloudinary,
+  deleteOnCloudinary,
+  extractPublicIdFromCloudinaryUrl,
+} from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 
@@ -316,6 +320,12 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Error while uploading avatar image");
   }
 
+  const currentUser = await User.findById(req.user?._id).select("avatar");
+
+  if (!currentUser) {
+    throw new ApiError(404, "User not found");
+  }
+
   const user = await User.findByIdAndUpdate(
     req.user?._id,
     {
@@ -327,6 +337,13 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
       new: true,
     }
   ).select("-password -refreshToken");
+
+  const oldAvatarPublicId = extractPublicIdFromCloudinaryUrl(currentUser.avatar);
+
+  if (currentUser.avatar && currentUser.avatar !== avatar.url) {
+    await deleteOnCloudinary(oldAvatarPublicId);
+  }
+
   return res
     .status(200)
     .json(new ApiResponse(200, user, "User avatar updated successfully"));
@@ -345,6 +362,12 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Error while uploading cover image");
   }
 
+  const currentUser = await User.findById(req.user?._id).select("coverImage");
+
+  if (!currentUser) {
+    throw new ApiError(404, "User not found");
+  }
+
   const user = await User.findByIdAndUpdate(
     req.user?._id,
     {
@@ -356,6 +379,15 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
       new: true,
     }
   ).select("-password -refreshToken");
+
+  const oldCoverImagePublicId = extractPublicIdFromCloudinaryUrl(
+    currentUser.coverImage
+  );
+
+  if (currentUser.coverImage && currentUser.coverImage !== coverImage.url) {
+    await deleteOnCloudinary(oldCoverImagePublicId);
+  }
+
   return res
     .status(200)
     .json(new ApiResponse(200, user, "User cover image updated successfully"));
@@ -417,7 +449,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
   ]);
 
   if (!channel.length) {
-    throw new ApiError(404, "User channel not found");
+    throw new ApiError(404, "Channel not found for the provided username");
   }
 
   return res

@@ -39,4 +39,35 @@ const deleteOnCloudinary = async (publicId, resourceType = "image") => {
     });
 };
 
-export { uploadOnCloudinary, deleteOnCloudinary }
+const extractPublicIdFromCloudinaryUrl = (fileUrl) => {
+    if (!fileUrl) {
+        return null;
+    }
+
+    const [urlWithoutQuery] = fileUrl.split("?");
+    const uploadMarker = "/upload/";
+    const uploadIndex = urlWithoutQuery.indexOf(uploadMarker);
+
+    if (uploadIndex === -1) {
+        return null;
+    }
+
+    const pathParts = urlWithoutQuery
+        .slice(uploadIndex + uploadMarker.length)
+        .split("/")
+        .filter(Boolean);
+
+    const versionIndex = pathParts.findIndex((part) => /^v\d+$/.test(part));
+    const assetParts = versionIndex >= 0 ? pathParts.slice(versionIndex + 1) : pathParts;
+    const filename = assetParts.pop();
+
+    if (!filename) {
+        return null;
+    }
+
+    const basename = filename.replace(/\.[^.]+$/, "");
+
+    return [...assetParts, basename].join("/");
+};
+
+export { uploadOnCloudinary, deleteOnCloudinary, extractPublicIdFromCloudinaryUrl }

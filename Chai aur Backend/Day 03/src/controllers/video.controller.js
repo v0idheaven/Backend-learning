@@ -16,19 +16,23 @@ const getAllVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
     const pipeline = [];
 
-    // for using Full Text based search u need to create a search index in mongoDB atlas
-    // you can include field mapppings in search index eg.title, description, as well
-    // Field mappings specify which fields within your documents should be indexed for text search.
-    // this helps in seraching only in title, desc providing faster search results
-    // here the name of search index is 'search-videos'
-    if (query) {
+    if (query?.trim()) {
         pipeline.push({
-            $search: {
-                index: "search-videos",
-                text: {
-                    query: query,
-                    path: ["title", "description"] //search only on title, desc
-                }
+            $match: {
+                $or: [
+                    {
+                        title: {
+                            $regex: query.trim(),
+                            $options: "i"
+                        }
+                    },
+                    {
+                        description: {
+                            $regex: query.trim(),
+                            $options: "i"
+                        }
+                    }
+                ]
             }
         });
     }
@@ -156,6 +160,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
 // get video by id
 const getVideoById = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
+    const viewerObjectId = new mongoose.Types.ObjectId(req.user?._id);
 
     if (!isValidObjectId(videoId)) {
         throw new ApiError(400, "Invalid videoId");
@@ -216,7 +221,7 @@ const getVideoById = asyncHandler(async (req, res) => {
                                 $cond: {
                                     if: {
                                         $in: [
-                                            req.user?._id,
+                                            viewerObjectId,
                                             "$subscribers.subscriber"
                                         ]
                                     },
@@ -247,7 +252,7 @@ const getVideoById = asyncHandler(async (req, res) => {
                 },
                 isLiked: {
                     $cond: {
-                        if: {$in: [req.user?._id, "$likes.likedBy"]},
+                        if: {$in: [viewerObjectId, "$likes.likedBy"]},
                         then: true,
                         else: false
                     }

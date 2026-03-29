@@ -22,8 +22,8 @@ const createTweet = asyncHandler(async (req, res) => {
     }
 
     return res
-        .status(200)
-        .json(new ApiResponse(200, tweet, "Tweet created successfully"));
+        .status(201)
+        .json(new ApiResponse(201, tweet, "Tweet created successfully"));
 });
 
 const updateTweet = asyncHandler(async (req, res) => {
@@ -94,6 +94,7 @@ const deleteTweet = asyncHandler(async (req, res) => {
 
 const getUserTweets = asyncHandler(async (req, res) => {
     const { userId } = req.params;
+    const viewerObjectId = new mongoose.Types.ObjectId(req.user?._id);
 
     if (!isValidObjectId(userId)) {
         throw new ApiError(400, "Invalid userId");
@@ -146,7 +147,7 @@ const getUserTweets = asyncHandler(async (req, res) => {
                 },
                 isLiked: {
                     $cond: {
-                        if: {$in: [req.user?._id, "$likeDetails.likedBy"]},
+                        if: {$in: [viewerObjectId, "$likeDetails.likedBy"]},
                         then: true,
                         else: false
                     }

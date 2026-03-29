@@ -10,6 +10,7 @@ import asyncHandler from "../utils/asyncHandler.js";
 const getVideoComments = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
     const { page = 1, limit = 10 } = req.query;
+    const viewerObjectId = new mongoose.Types.ObjectId(req.user?._id);
 
     if (!mongoose.isValidObjectId(videoId)) {
         throw new ApiError(400, "Invalid videoId");
@@ -62,7 +63,7 @@ const getVideoComments = asyncHandler(async (req, res) => {
                 },
                 isLiked: {
                     $cond: {
-                        if: { $in: [req.user?._id, "$likes.likedBy"] },
+                        if: { $in: [viewerObjectId, "$likes.likedBy"] },
                         then: true,
                         else: false
                     }
