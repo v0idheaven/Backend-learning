@@ -8,7 +8,7 @@ import mongoose, { isValidObjectId } from "mongoose";
 const createPlaylist = asyncHandler(async (req, res) => {
     const { name, description } = req.body;
 
-    if (!name || !description) {
+    if (![name, description].every((field) => field?.trim())) {
         throw new ApiError(400, "name and description both are required");
     }
 
@@ -23,15 +23,15 @@ const createPlaylist = asyncHandler(async (req, res) => {
     }
 
     return res
-        .status(200)
-        .json(new ApiResponse(200, playlist, "playlist created successfully"));
+        .status(201)
+        .json(new ApiResponse(201, playlist, "playlist created successfully"));
 });
 
 const updatePlaylist = asyncHandler(async (req, res) => {
     const { name, description } = req.body;
     const { playlistId } = req.params;
 
-    if (!name || !description) {
+    if (![name, description].every((field) => field?.trim())) {
         throw new ApiError(400, "name and description both are required");
     }
 
@@ -96,7 +96,7 @@ const deletePlaylist = asyncHandler(async (req, res) => {
             new ApiResponse(
                 200,
                 {},
-                "playlist updated successfully"
+                "playlist deleted successfully"
             )
         );
 });
@@ -118,11 +118,12 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
         throw new ApiError(404, "video not found");
     }
 
-    if (
-        (playlist.owner?.toString() && video.owner.toString()) !==
-        req.user?._id.toString()
-    ) {
+    if (playlist.owner?.toString() !== req.user?._id.toString()) {
         throw new ApiError(400, "only owner can add video to thier playlist");
+    }
+
+    if (!video.isPublished && video.owner?.toString() !== req.user?._id.toString()) {
+        throw new ApiError(403, "You can only add published videos from other channels");
     }
 
     const updatedPlaylist = await Playlist.findByIdAndUpdate(
@@ -170,12 +171,9 @@ const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
         throw new ApiError(404, "video not found");
     }
 
-    if (
-        (playlist.owner?.toString() && video.owner.toString()) !==
-        req.user?._id.toString()
-    ) {
+    if (playlist.owner?.toString() !== req.user?._id.toString()) {
         throw new ApiError(
-            404,
+            403,
             "only owner can remove video from thier playlist"
         );
     }
@@ -226,11 +224,13 @@ const getPlaylistById = asyncHandler(async (req, res) => {
                 localField: "videos",
                 foreignField: "_id",
                 as: "videos",
-            }
-        },
-        {
-            $match: {
-                "videos.isPublished": true
+                pipeline: [
+                    {
+                        $match: {
+                            isPublished: true
+                        }
+                    }
+                ]
             }
         },
         {
@@ -239,6 +239,15 @@ const getPlaylistById = asyncHandler(async (req, res) => {
                 localField: "owner",
                 foreignField: "_id",
                 as: "owner",
+                pipeline: [
+                    {
+                        $project: {
+                            username: 1,
+                            fullName: 1,
+                            avatar: 1
+                        }
+                    }
+                ]
             }
         },
         {
@@ -264,8 +273,8 @@ const getPlaylistById = asyncHandler(async (req, res) => {
                 totalViews: 1,
                 videos: {
                     _id: 1,
-                    "videoFile.url": 1,
-                    "thumbnail.url": 1,
+                    videoFile: 1,
+                    thumbnail: 1,
                     title: 1,
                     description: 1,
                     duration: 1,
@@ -275,7 +284,7 @@ const getPlaylistById = asyncHandler(async (req, res) => {
                 owner: {
                     username: 1,
                     fullName: 1,
-                    "avatar.url": 1
+                    avatar: 1
                 }
             }
         }

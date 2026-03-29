@@ -11,6 +11,10 @@ const getVideoComments = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
     const { page = 1, limit = 10 } = req.query;
 
+    if (!mongoose.isValidObjectId(videoId)) {
+        throw new ApiError(400, "Invalid videoId");
+    }
+
     const video = await Video.findById(videoId);
 
     if (!video) {
@@ -28,7 +32,16 @@ const getVideoComments = asyncHandler(async (req, res) => {
                 from: "users",
                 localField: "owner",
                 foreignField: "_id",
-                as: "owner"
+                as: "owner",
+                pipeline: [
+                    {
+                        $project: {
+                            username: 1,
+                            fullName: 1,
+                            avatar: 1
+                        }
+                    }
+                ]
             }
         },
         {
@@ -69,7 +82,7 @@ const getVideoComments = asyncHandler(async (req, res) => {
                 owner: {
                     username: 1,
                     fullName: 1,
-                    "avatar.url": 1
+                    avatar: 1
                 },
                 isLiked: 1
             }
@@ -96,7 +109,11 @@ const addComment = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
     const { content } = req.body;
 
-    if (!content) {
+    if (!mongoose.isValidObjectId(videoId)) {
+        throw new ApiError(400, "Invalid videoId");
+    }
+
+    if (!content?.trim()) {
         throw new ApiError(400, "Content is required");
     }
 
@@ -126,7 +143,11 @@ const updateComment = asyncHandler(async (req, res) => {
     const { commentId } = req.params;
     const { content } = req.body;
 
-    if (!content) {
+    if (!mongoose.isValidObjectId(commentId)) {
+        throw new ApiError(400, "Invalid commentId");
+    }
+
+    if (!content?.trim()) {
         throw new ApiError(400, "content is required");
     }
 
@@ -165,6 +186,10 @@ const updateComment = asyncHandler(async (req, res) => {
 const deleteComment = asyncHandler(async (req, res) => {
     const { commentId } = req.params;
 
+    if (!mongoose.isValidObjectId(commentId)) {
+        throw new ApiError(400, "Invalid commentId");
+    }
+
     const comment = await Comment.findById(commentId);
 
     if (!comment) {
@@ -178,8 +203,7 @@ const deleteComment = asyncHandler(async (req, res) => {
     await Comment.findByIdAndDelete(commentId);
 
     await Like.deleteMany({
-        comment: commentId,
-        likedBy: req.user
+        comment: commentId
     });
 
     return res

@@ -14,7 +14,6 @@ import { Like } from "../models/like.model.js";
 // get all videos based on query, sort, pagination
 const getAllVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
-    console.log(userId);
     const pipeline = [];
 
     // for using Full Text based search u need to create a search index in mongoDB atlas
@@ -72,7 +71,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
                     {
                         $project: {
                             username: 1,
-                            "avatar.url": 1
+                            avatar: 1
                         }
                     }
                 ]
@@ -101,12 +100,12 @@ const getAllVideos = asyncHandler(async (req, res) => {
 const publishAVideo = asyncHandler(async (req, res) => {
     const { title, description } = req.body;
     
-    if ([title, description].some((field) => field?.trim() === "")) {
+    if ([title, description].some((field) => !field?.trim())) {
         throw new ApiError(400, "All fields are required");
     }
 
-    const videoFileLocalPath = req.files?.videoFile[0].path;
-    const thumbnailLocalPath = req.files?.thumbnail[0].path;
+    const videoFileLocalPath = req.files?.videoFile?.[0]?.path;
+    const thumbnailLocalPath = req.files?.thumbnail?.[0]?.path;
 
     if (!videoFileLocalPath) {
         throw new ApiError(400, "videoFileLocalPath is required");
@@ -150,22 +149,33 @@ const publishAVideo = asyncHandler(async (req, res) => {
     }
 
     return res
-        .status(200)
-        .json(new ApiResponse(200, video, "Video uploaded successfully"));
+        .status(201)
+        .json(new ApiResponse(201, video, "Video uploaded successfully"));
 });
 
 // get video by id
 const getVideoById = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
-    // let userId = req.body;
-    
-    // userId = new mongoose.Types.ObjectId(userId)
+
     if (!isValidObjectId(videoId)) {
         throw new ApiError(400, "Invalid videoId");
     }
 
     if (!isValidObjectId(req.user?._id)) {
         throw new ApiError(400, "Invalid userId");
+    }
+
+    const existingVideo = await Video.findById(videoId);
+
+    if (!existingVideo) {
+        throw new ApiError(404, "Video not found");
+    }
+
+    if (
+        !existingVideo.isPublished &&
+        existingVideo.owner.toString() !== req.user?._id.toString()
+    ) {
+        throw new ApiError(403, "You are not allowed to access this video");
     }
 
     const video = await Video.aggregate([
@@ -219,7 +229,7 @@ const getVideoById = asyncHandler(async (req, res) => {
                     {
                         $project: {
                             username: 1,
-                            "avatar.url": 1,
+                            avatar: 1,
                             subscribersCount: 1,
                             isSubscribed: 1
                         }
@@ -246,7 +256,8 @@ const getVideoById = asyncHandler(async (req, res) => {
         },
         {
             $project: {
-                "videoFile.url": 1,
+                videoFile: 1,
+                thumbnail: 1,
                 title: 1,
                 description: 1,
                 views: 1,
@@ -260,8 +271,8 @@ const getVideoById = asyncHandler(async (req, res) => {
         }
     ]);
 
-    if (!video) {
-        throw new ApiError(500, "failed to fetch video");
+    if (!video.length) {
+        throw new ApiError(404, "failed to fetch video");
     }
 
     // increment views if video fetched successfully
@@ -298,6 +309,10 @@ const updateVideo = asyncHandler(async (req, res) => {
         throw new ApiError(400, "title and description are required");
     }
 
+    if (![title, description].every((field) => field?.trim())) {
+        throw new ApiError(400, "title and description are required");
+    }
+
     const video = await Video.findById(videoId);
 
     if (!video) {
@@ -312,7 +327,7 @@ const updateVideo = asyncHandler(async (req, res) => {
     }
 
     //deleting old thumbnail and updating with new one
-    const thumbnailToDelete = video.thumbnail.public_id;
+    const thumbnailToDelete = video.thumbnail?.public_id;
 
     const thumbnailLocalPath = req.file?.path;
 
@@ -345,7 +360,7 @@ const updateVideo = asyncHandler(async (req, res) => {
         throw new ApiError(500, "Failed to update video please try again");
     }
 
-    if (updatedVideo) {
+    if (updatedVideo && thumbnailToDelete) {
         await deleteOnCloudinary(thumbnailToDelete);
     }
 
@@ -381,18 +396,21 @@ const deleteVideo = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Failed to delete the video please try again");
     }
 
-    await deleteOnCloudinary(video.thumbnail.public_id); // video model has thumbnail public_id stored in it->check videoModel
-    await deleteOnCloudinary(video.videoFile.public_id, "video"); // specify video while deleting video
+    const commentIds = await Comment.find({ video: videoId }).distinct("_id");
 
-    // delete video likes
+    await deleteOnCloudinary(video.thumbnail?.public_id);
+    await deleteOnCloudinary(video.videoFile?.public_id, "video");
+
     await Like.deleteMany({
-        video: videoId
-    })
+        $or: [
+            { video: videoId },
+            { comment: { $in: commentIds } }
+        ]
+    });
 
-     // delete video comments
     await Comment.deleteMany({
         video: videoId,
-    })
+    });
     
     return res
         .status(200)

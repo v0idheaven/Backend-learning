@@ -1,5 +1,8 @@
 import mongoose, { isValidObjectId } from "mongoose";
 import { Like } from "../models/like.model.js";
+import { Video } from "../models/video.model.js";
+import { Comment } from "../models/comment.model.js";
+import { Tweet } from "../models/tweet.model.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import ApiError from "../utils/ApiError.js";
 import asyncHandler from "../utils/asyncHandler.js";
@@ -11,6 +14,11 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid videoId");
     }
 
+    const video = await Video.findById(videoId);
+
+    if (!video || !video.isPublished) {
+        throw new ApiError(404, "Video not found");
+    }
 
     const likedAlready = await Like.findOne({
         video: videoId,
@@ -42,6 +50,11 @@ const toggleCommentLike = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid commentId");
     }
 
+    const comment = await Comment.findById(commentId);
+
+    if (!comment) {
+        throw new ApiError(404, "Comment not found");
+    }
 
     const likedAlready = await Like.findOne({
         comment: commentId,
@@ -73,6 +86,11 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid tweetId");
     }
 
+    const tweet = await Tweet.findById(tweetId);
+
+    if (!tweet) {
+        throw new ApiError(404, "Tweet not found");
+    }
 
     const likedAlready = await Like.findOne({
         tweet: tweetId,
@@ -102,6 +120,9 @@ const getLikedVideos = asyncHandler(async (req, res) => {
         {
             $match: {
                 likedBy: new mongoose.Types.ObjectId(req.user?._id),
+                video: {
+                    $ne: null,
+                },
             },
         },
         {
@@ -112,11 +133,25 @@ const getLikedVideos = asyncHandler(async (req, res) => {
                 as: "likedVideo",
                 pipeline: [
                     {
+                        $match: {
+                            isPublished: true,
+                        },
+                    },
+                    {
                         $lookup: {
                             from: "users",
                             localField: "owner",
                             foreignField: "_id",
                             as: "ownerDetails",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        username: 1,
+                                        fullName: 1,
+                                        avatar: 1,
+                                    },
+                                },
+                            ],
                         },
                     },
                     {
@@ -150,7 +185,7 @@ const getLikedVideos = asyncHandler(async (req, res) => {
                     ownerDetails: {
                         username: 1,
                         fullName: 1,
-                        "avatar.url": 1,
+                        avatar: 1,
                     },
                 },
             },

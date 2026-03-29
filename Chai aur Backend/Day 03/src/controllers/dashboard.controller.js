@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 import { Video } from "../models/video.model.js";
 import { Subscription } from "../models/subscription.model.js";
-import { Like } from "../models/like.model.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
 
@@ -83,7 +82,6 @@ const getChannelStats = asyncHandler(async (req, res) => {
 });
 
 const getChannelVideos = asyncHandler(async (req, res) => {
-    // TODO: Get all the videos uploaded by the channel
     const userId = req.user?._id;
 
     const videos = await Video.aggregate([
@@ -102,9 +100,6 @@ const getChannelVideos = asyncHandler(async (req, res) => {
         },
         {
             $addFields: {
-                createdAt: {
-                    $dateToParts: { date: "$createdAt" }
-                },
                 likesCount: {
                     $size: "$likes"
                 }
@@ -118,15 +113,12 @@ const getChannelVideos = asyncHandler(async (req, res) => {
         {
             $project: {
                 _id: 1,
-                "videoFile.url": 1,
-                "thumbnail.url": 1,
+                videoFile: 1,
+                thumbnail: 1,
                 title: 1,
                 description: 1,
-                createdAt: {
-                    year: 1,
-                    month: 1,
-                    day: 1
-                },
+                createdAt: 1,
+                views: 1,
                 isPublished: 1,
                 likesCount: 1
             }

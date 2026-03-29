@@ -1,14 +1,14 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import { Tweet } from "../models/tweet.model.js";
+import { Like } from "../models/like.model.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import mongoose, { isValidObjectId } from "mongoose";
-import { User } from "../models/user.model.js";
 
 const createTweet = asyncHandler(async (req, res) => {
     const { content } = req.body;
 
-    if (!content) {
+    if (!content?.trim()) {
         throw new ApiError(400, "content is required");
     }
 
@@ -30,7 +30,7 @@ const updateTweet = asyncHandler(async (req, res) => {
     const { content } = req.body;
     const { tweetId } = req.params;
 
-    if (!content) {
+    if (!content?.trim()) {
         throw new ApiError(400, "content is required");
     }
 
@@ -85,6 +85,7 @@ const deleteTweet = asyncHandler(async (req, res) => {
     }
 
     await Tweet.findByIdAndDelete(tweetId);
+    await Like.deleteMany({ tweet: tweetId });
 
     return res
         .status(200)
@@ -114,7 +115,7 @@ const getUserTweets = asyncHandler(async (req, res) => {
                     {
                         $project: {
                             username: 1,
-                            "avatar.url": 1,
+                            avatar: 1,
                         },
                     },
                 ],
