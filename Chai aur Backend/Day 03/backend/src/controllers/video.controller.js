@@ -146,11 +146,14 @@ const publishAVideo = asyncHandler(async (req, res) => {
         );
     }
 
-    if (!videoFile?.url) {
+    const videoUrl = videoFile?.secure_url || videoFile?.url;
+    const thumbnailUrl = thumbnail?.secure_url || thumbnail?.url;
+
+    if (!videoUrl) {
         throw new ApiError(400, "Video upload failed. Please try a different file.");
     }
 
-    if (!thumbnail?.url) {
+    if (!thumbnailUrl) {
         throw new ApiError(400, "Thumbnail upload failed. Please try a different image.");
     }
 
@@ -159,11 +162,11 @@ const publishAVideo = asyncHandler(async (req, res) => {
         description,
         duration: videoFile.duration,
         videoFile: {
-            url: videoFile.url,
+            url: videoUrl,
             public_id: videoFile.public_id
         },
         thumbnail: {
-            url: thumbnail.url,
+            url: thumbnailUrl,
             public_id: thumbnail.public_id
         },
         owner: req.user?._id,

@@ -19,10 +19,36 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDirectory = path.resolve(__dirname, "../public");
+const defaultAllowedOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
+
+const allowedOrigins = [
+    ...new Set(
+        [
+            ...(process.env.CORS_ORIGIN || "")
+                .split(",")
+                .map((origin) => origin.trim())
+                .filter(Boolean),
+            ...(process.env.NODE_ENV === "production" ? [] : defaultAllowedOrigins)
+        ]
+    )
+];
+
+if (process.env.NODE_ENV === "production") {
+    app.set("trust proxy", 1);
+}
 
 app.use(
     cors({
-        origin: process.env.CORS_ORIGIN,
+        origin(origin, callback) {
+            if (!origin || !allowedOrigins.length || allowedOrigins.includes(origin)) {
+                callback(null, true);
+                return;
+            }
+
+            const corsError = new Error(`CORS blocked for origin: ${origin}`);
+            corsError.statusCode = 403;
+            callback(corsError);
+        },
         credentials: true
     })
 );

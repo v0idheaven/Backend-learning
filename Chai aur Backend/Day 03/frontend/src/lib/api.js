@@ -13,10 +13,23 @@ const readPayload = async (response) => {
 };
 
 let refreshPromise = null;
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
+
+const resolveApiUrl = (path) => {
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+
+  if (!apiBaseUrl) {
+    return path;
+  }
+
+  return `${apiBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+};
 
 const tryRefreshToken = async () => {
   if (!refreshPromise) {
-    refreshPromise = fetch("/api/v1/users/refresh-token", {
+    refreshPromise = fetch(resolveApiUrl("/api/v1/users/refresh-token"), {
       method: "POST",
       credentials: "include",
     })
@@ -50,7 +63,8 @@ export const apiRequest = async (path, options = {}, config = {}) => {
     }
   }
 
-  let response = await fetch(path, requestOptions);
+  const requestUrl = resolveApiUrl(path);
+  let response = await fetch(requestUrl, requestOptions);
 
   if (
     response.status === 401 &&
@@ -60,7 +74,7 @@ export const apiRequest = async (path, options = {}, config = {}) => {
     const refreshed = await tryRefreshToken();
 
     if (refreshed) {
-      response = await fetch(path, requestOptions);
+      response = await fetch(requestUrl, requestOptions);
     }
   }
 

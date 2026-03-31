@@ -37,7 +37,6 @@ const uploadOnCloudinary = async (
             ? await new Promise((resolve, reject) => {
                 cloudinary.uploader.upload_large(
                     localFilePath,
-                    uploadOptions,
                     (error, result) => {
                         if (error) {
                             reject(error);
@@ -45,7 +44,8 @@ const uploadOnCloudinary = async (
                         }
 
                         resolve(result);
-                    }
+                    },
+                    uploadOptions
                 );
             })
             : await cloudinary.uploader.upload(localFilePath, uploadOptions);
