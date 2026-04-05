@@ -3,13 +3,12 @@
 import http from 'http';
 // const http = require("http");
 
-
 const PORT = 5000;
 
 const server = http.createServer();
 
 server.on("request", (request, response) => {
-    response.end("Hello There!");
+    response.end("Hello");
 });
 
 server.listen(PORT, (err) => {
